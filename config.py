@@ -5,6 +5,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _normalize_db_url(url: str | None) -> str:
+    """Приводит DATABASE_URL к формату, понятному SQLAlchemy + psycopg2."""
+    if not url:
+        return url  # ниже сработает ранняя проверка
+    # Render/Supabase иногда отдают старый формат postgres://
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
+    # Явно указываем драйвер psycopg2 (он понимает пользователя вида postgres.xxxx)
+    elif url.startswith("postgresql://") and "+psycopg2" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return url
+
+
 class Config:
     """Базовая конфигурация приложения."""
 
@@ -12,11 +25,10 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-me'
 
     # --- База данных (Supabase Session Pooler) ---
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
+    SQLALCHEMY_DATABASE_URI = _normalize_db_url(os.environ.get('DATABASE_URL'))
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Пул соединений — важно для Supabase Session Pooler
-    # (у бесплатного тарифа ограничение одновременных соединений)
     SQLALCHEMY_ENGINE_OPTIONS = {
         'pool_size': 5,
         'max_overflow': 2,
