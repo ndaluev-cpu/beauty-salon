@@ -1,3 +1,6 @@
+import os
+print("DB URL prefix:", (os.environ.get("DATABASE_URL") or "")[:30])
+
 from dotenv import load_dotenv
 load_dotenv()
 
