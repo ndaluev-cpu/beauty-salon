@@ -1,0 +1,168 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Категории | MODA{% endblock %}
+{% block page_title %}Категории{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h5 class="mb-0">Список категорий ({{ categories|length }})</h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCatModal">
+        <i class="bi bi-plus-lg"></i> Добавить категорию
+    </button>
+</div>
+
+{% if categories %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th width="60">ID</th>
+                <th>Название</th>
+                <th>Slug (ссылка)</th>
+                <th width="100">Порядок</th>
+                <th width="110">Услуг</th>
+                <th width="140">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in categories %}
+            <tr>
+                <td>{{ c.id }}</td>
+                <td><strong>{{ c.name }}</strong></td>
+                <td><code>{{ c.slug }}</code></td>
+                <td>{{ c.sort_order or 0 }}</td>
+                <td>
+                    <span class="badge {% if c.services.count() > 0 %}bg-info text-dark{% else %}bg-light text-muted{% endif %}">
+                        {{ c.services.count() }}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="editCategory({{ c.id }})"
+                            data-bs-toggle="modal" data-bs-target="#editCatModal">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form action="{{ url_for('admin.categories_delete', id=c.id) }}"
+                          method="POST" class="d-inline">
+                        <button type="submit"
+                                class="btn btn-sm btn-outline-danger"
+                                {% if c.services.count() > 0 %}
+                                title="Нельзя удалить: в категории есть услуги"
+                                {% endif %}
+                                onclick="return confirm('Удалить категорию «{{ c.name }}»?{% if c.services.count() > 0 %} В ней {{ c.services.count() }} услуг(и) — удаление заблокировано.{% endif %}')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-tags" style="font-size:3rem;"></i>
+    <p class="mt-2">Категорий пока нет. Добавьте первую.</p>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Добавить категорию
+     POST на тот же URL /admin/categories (обрабатывается в admin.categories)
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="addCatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.categories') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Новая категория</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название категории *</label>
+                        <input type="text" name="name" class="form-control" required
+                               placeholder="Например: Маникюр">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Slug (ссылка)</label>
+                        <input type="text" name="slug" class="form-control"
+                               placeholder="оставьте пустым — сгенерируется автоматически">
+                        <small class="text-muted">Латиница, цифры, дефис. Например: manicure</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Порядок сортировки</label>
+                        <input type="number" name="sort_order" class="form-control" value="0" min="0">
+                        <small class="text-muted">Меньше число — выше в списке</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Редактировать категорию
+     POST на /admin/categories/edit/<id>
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editCatModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editCatForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать категорию</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Название *</label>
+                        <input type="text" name="name" id="ecName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Slug (ссылка)</label>
+                        <input type="text" name="slug" id="ecSlug" class="form-control">
+                        <small class="text-muted">Осторожно: смена slug сломает старые ссылки</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Порядок сортировки</label>
+                        <input type="number" name="sort_order" id="ecSortOrder" class="form-control" min="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const categoriesData = {
+    {% for c in categories %}
+    {{ c.id }}: {
+        name: {{ c.name|tojson }},
+        slug: {{ (c.slug or '')|tojson }},
+        sort_order: {{ c.sort_order or 0 }}
+    },
+    {% endfor %}
+};
+
+function editCategory(id) {
+    const c = categoriesData[id];
+    if (!c) return;
+
+    const form = document.getElementById('editCatForm');
+    form.action = `/admin/categories/edit/${id}`;
+
+    document.getElementById('ecName').value = c.name || '';
+    document.getElementById('ecSlug').value = c.slug || '';
+    document.getElementById('ecSortOrder').value = c.sort_order || 0;
+}
+</script>
+{% endblock %}

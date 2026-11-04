@@ -1,0 +1,293 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Услуги | MODA{% endblock %}
+{% block page_title %}Управление услугами{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h5 class="mb-0">Услуги ({{ services|length }})</h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addServiceModal">
+        <i class="bi bi-plus-lg"></i> Добавить услугу
+    </button>
+</div>
+
+{% if services %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th width="70">Фото</th>
+                <th>Название</th>
+                <th>Категория</th>
+                <th>Мастер</th>
+                <th width="100">Цена</th>
+                <th width="100">Время</th>
+                <th width="100">Статус</th>
+                <th width="120">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in services %}
+            <tr>
+                <td>
+                    {% if s.image %}
+                    <img src="{{ url_for('static', filename='images/services/' + s.image) }}"
+                         class="image-preview"
+                         style="width:50px; height:50px; object-fit:cover; border-radius:8px;">
+                    {% else %}
+                    <div class="image-preview"
+                         style="width:50px; height:50px; background:#f0f0f0; border-radius:8px;
+                                display:flex; align-items:center; justify-content:center;">
+                        <i class="bi bi-flower1" style="color:#999; font-size:1.5rem;"></i>
+                    </div>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>{{ s.name }}</strong>
+                    {% if s.is_new %}<span class="badge ms-1" style="background:#d4819a;">NEW</span>{% endif %}
+                    {% if s.is_hit %}<span class="badge bg-warning text-dark ms-1">ХИТ</span>{% endif %}
+                </td>
+                <td>{{ s.category.name if s.category else '—' }}</td>
+                <td>{{ s.master.name if s.master else 'Любой' }}</td>
+                <td><strong>{{ s.price }} ₽</strong></td>
+                <td>{{ s.duration or '—' }} мин</td>
+                <td>
+                    {% if s.is_active %}
+                    <span class="badge bg-success">Активна</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Скрыта</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="editService({{ s.id }})"
+                            data-bs-toggle="modal" data-bs-target="#editServiceModal">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form action="{{ url_for('admin.services_delete', id=s.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Удалить услугу «{{ s.name }}»?')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-inbox" style="font-size:3rem;"></i>
+    <p class="mt-2">Услуг пока нет. Добавьте первую услугу.</p>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Добавить услугу
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="addServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.services_add') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить услугу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Название *</label>
+                            <input type="text" name="name" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Категория *</label>
+                            <select name="category_id" class="form-select" required>
+                                <option value="">Выберите</option>
+                                {% for c in categories %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Мастер (опционально)</label>
+                            <select name="master_id" class="form-select">
+                                <option value="">Любой мастер</option>
+                                {% for m in masters %}
+                                <option value="{{ m.id }}">{{ m.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Цена, ₽ *</label>
+                            <input type="number" name="price" class="form-control" required min="0" step="1">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Старая цена</label>
+                            <input type="number" name="old_price" class="form-control" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Длительность (мин)</label>
+                            <input type="number" name="duration" class="form-control" placeholder="60" min="0">
+                        </div>
+                        <div class="col-md-8 mb-3 d-flex align-items-end gap-3 pb-2">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_new" class="form-check-input" id="sNew">
+                                <label class="form-check-label" for="sNew">Новинка</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="is_hit" class="form-check-input" id="sHit">
+                                <label class="form-check-label" for="sHit">Хит продаж</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="sActive" checked>
+                                <label class="form-check-label" for="sActive">Активна</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Фото услуги</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Редактировать услугу
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editServiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="editServiceForm" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать услугу</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label class="form-label">Название *</label>
+                            <input type="text" name="name" id="epName" class="form-control" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Категория *</label>
+                            <select name="category_id" id="epCategory" class="form-select" required>
+                                <option value="">Выберите</option>
+                                {% for c in categories %}
+                                <option value="{{ c.id }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Мастер</label>
+                            <select name="master_id" id="epMaster" class="form-select">
+                                <option value="">Любой мастер</option>
+                                {% for m in masters %}
+                                <option value="{{ m.id }}">{{ m.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Цена, ₽ *</label>
+                            <input type="number" name="price" id="epPrice" class="form-control" required min="0" step="1">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">Старая цена</label>
+                            <input type="number" name="old_price" id="epOldPrice" class="form-control" min="0" step="1">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Длительность (мин)</label>
+                            <input type="number" name="duration" id="epDuration" class="form-control" min="0">
+                        </div>
+                        <div class="col-md-8 mb-3 d-flex align-items-end gap-3 pb-2">
+                            <div class="form-check">
+                                <input type="checkbox" name="is_new" class="form-check-input" id="epNew">
+                                <label class="form-check-label" for="epNew">Новинка</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="is_hit" class="form-check-input" id="epHit">
+                                <label class="form-check-label" for="epHit">Хит продаж</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="is_active" class="form-check-input" id="epActive">
+                                <label class="form-check-label" for="epActive">Активна</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" id="epDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новое фото (оставьте пустым, чтобы не менять)</label>
+                        <input type="file" name="image" class="form-control" accept="image/*">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Данные услуг для заполнения формы редактирования (безопасный JSON)
+const servicesData = {
+    {% for s in services %}
+    {{ s.id }}: {
+        name: {{ s.name|tojson }},
+        category_id: {{ s.category_id if s.category_id else 'null' }},
+        master_id: {{ s.master_id if s.master_id else 'null' }},
+        price: {{ s.price }},
+        old_price: {{ s.old_price if s.old_price else 'null' }},
+        duration: {{ s.duration if s.duration else 'null' }},
+        description: {{ (s.description or '')|tojson }},
+        is_new: {{ 'true' if s.is_new else 'false' }},
+        is_hit: {{ 'true' if s.is_hit else 'false' }},
+        is_active: {{ 'true' if s.is_active else 'false' }}
+    },
+    {% endfor %}
+};
+
+function editService(id) {
+    const s = servicesData[id];
+    if (!s) return;
+
+    const form = document.getElementById('editServiceForm');
+    form.action = `/admin/services/edit/${id}`;
+
+    document.getElementById('epName').value = s.name || '';
+    document.getElementById('epCategory').value = s.category_id || '';
+    document.getElementById('epMaster').value = s.master_id || '';
+    document.getElementById('epPrice').value = s.price || '';
+    document.getElementById('epOldPrice').value = s.old_price || '';
+    document.getElementById('epDuration').value = s.duration || '';
+    document.getElementById('epDescription').value = s.description || '';
+    document.getElementById('epNew').checked = s.is_new;
+    document.getElementById('epHit').checked = s.is_hit;
+    document.getElementById('epActive').checked = s.is_active;
+}
+</script>
+{% endblock %}

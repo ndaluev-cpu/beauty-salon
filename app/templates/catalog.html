@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Услуги — MODA{% endblock %}
+
+{% block content %}
+<div class="hero-section" style="height:30vh;min-height:220px;background:linear-gradient(135deg,#b56581 0%,#d4819a 100%);">
+    <div class="container h-100">
+        <div class="row h-100 align-items-center justify-content-center">
+            <div class="col-lg-8 text-center text-white">
+                <h1 class="display-5" style="font-family:'Playfair Display',serif;">Услуги</h1>
+                <p class="lead mb-0">Выберите процедуру — мы свяжемся для подтверждения</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="site-section">
+    <div class="container">
+        <div class="row">
+            <!-- ФИЛЬТРЫ -->
+            <aside class="col-lg-3 mb-4">
+                <div class="filter-panel p-4 bg-white shadow-sm rounded">
+                    <h5 class="mb-3">Фильтры</h5>
+
+                    <div class="mb-3">
+                        <label class="form-label">Категория</label>
+                        <select id="fCategory" class="form-select">
+                            <option value="all">Все категории</option>
+                            {% for c in categories %}
+                            <option value="{{ c.slug }}">{{ c.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Цена, ₽</label>
+                        <div class="d-flex gap-2">
+                            <input type="number" id="fPriceMin" class="form-control" placeholder="от" min="0">
+                            <input type="number" id="fPriceMax" class="form-control" placeholder="до" min="0">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Мастер</label>
+                        <select id="fMaster" class="form-select">
+                            <option value="">Любой мастер</option>
+                            {% for m in masters %}
+                            <option value="{{ m.id }}">{{ m.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button id="applyFilters" class="btn btn-primary w-100">Применить</button>
+                    <button id="resetFilters" class="btn btn-outline-secondary w-100 mt-2">Сбросить</button>
+                </div>
+            </aside>
+
+            <!-- УСЛУГИ -->
+            <div class="col-lg-9">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span id="foundCount" class="text-muted">Загрузка…</span>
+                    <select id="fSort" class="form-select" style="width:auto;">
+                        <option value="new">Сначала новые</option>
+                        <option value="price_asc">Цена ↑</option>
+                        <option value="price_desc">Цена ↓</option>
+                    </select>
+                </div>
+
+                <div class="row" id="servicesGrid"></div>
+
+                <div id="emptyState" class="text-center py-5 d-none">
+                    <i class="bi bi-search" style="font-size:3rem;color:#ccc;"></i>
+                    <h4 class="mt-3">Ничего не найдено</h4>
+                    <p class="text-muted">Попробуйте изменить фильтры</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.filter-panel { position: sticky; top: 20px; }
+.service-card {
+    background: #fff; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0,0,0,.05); transition: all .3s;
+    height: 100%; display: flex; flex-direction: column;
+}
+.service-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,.1); }
+.service-image { height: 240px; overflow: hidden; position: relative; background:#f5f5f5; }
+.service-image img { width:100%; height:100%; object-fit: cover; transition: transform .5s; }
+.service-card:hover .service-image img { transform: scale(1.05); }
+.badge-new, .badge-hit {
+    position: absolute; top: 10px; padding: 4px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 600; z-index: 2;
+    text-transform: uppercase; letter-spacing: 1px;
+}
+.badge-new { background: #d4819a; color: #fff; left: 10px; }
+.badge-hit { background: #c9a86a; color: #fff; right: 10px; }
+.service-info { padding: 15px; display: flex; flex-direction: column; flex: 1; }
+.service-info h5 { font-size: 1.05rem; margin: 0 0 5px; font-weight: 600; }
+.service-info .cat { font-size: 12px; color: #999; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+.service-info .meta { font-size: 13px; color: #666; margin: 4px 0; }
+.service-info .price { font-size: 1.25rem; font-weight: 700; color: #b56581; }
+.service-info .price-old { font-size: .9rem; color: #bbb; text-decoration: line-through; margin-left: 6px; }
+.btn-add-service {
+    background:#d4819a; border-color:#d4819a; color:#fff; font-weight:500;
+    border-radius:8px; transition: all .2s;
+}
+.btn-add-service:hover { background:#b56581; border-color:#b56581; color:#fff; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const state = {
+    category: 'all',
+    price_min: null,
+    price_max: null,
+    master: '',
+    sort: 'new'
+};
+
+function renderServices(list) {
+    const grid = document.getElementById('servicesGrid');
+    const empty = document.getElementById('emptyState');
+    const counter = document.getElementById('foundCount');
+
+    counter.textContent = `Найдено услуг: ${list.length}`;
+
+    if (!list.length) {
+        grid.innerHTML = '';
+        empty.classList.remove('d-none');
+        return;
+    }
+    empty.classList.add('d-none');
+
+    grid.innerHTML = list.map(p => `
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="service-card">
+                <a href="/product/${p.id}" class="text-decoration-none text-dark">
+                    <div class="service-image">
+                        <img src="/static/images/${p.image || 'placeholder.jpg'}"
+                             onerror="this.src='/static/images/placeholder.jpg'"
+                             alt="${p.name}">
+                        ${p.is_new ? '<span class="badge-new">NEW</span>' : ''}
+                        ${p.is_hit ? '<span class="badge-hit">ХИТ</span>' : ''}
+                    </div>
+                </a>
+                <div class="service-info">
+                    <h5><a href="/product/${p.id}" class="text-decoration-none text-dark">${p.name}</a></h5>
+                    <div class="cat">${p.category || ''}</div>
+                    ${p.master ? `<div class="meta"><i class="bi bi-person"></i> ${p.master}</div>` : ''}
+                    ${p.duration ? `<div class="meta"><i class="bi bi-clock"></i> ${p.duration} мин</div>` : ''}
+                    <div class="mt-auto pt-2 d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="price">${p.price} ₽</span>
+                            ${p.old_price ? `<span class="price-old">${p.old_price} ₽</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="btn btn-add-service btn-sm mt-2 w-100"
+                            onclick='addServiceToCart(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+                        <i class="bi bi-plus-lg"></i> В заявку
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addServiceToCart(service) {
+    // Простая корзина для услуг (без size/color)
+    Cart.add({
+        id: service.id,
+        name: service.name,
+        price: service.price,
+        image: service.image ? '/static/images/' + service.image : '/static/images/placeholder.jpg'
+    });
+}
+
+function buildQuery() {
+    const p = new URLSearchParams();
+    if (state.category && state.category !== 'all') p.set('category', state.category);
+    if (state.price_min) p.set('price_min', state.price_min);
+    if (state.price_max) p.set('price_max', state.price_max);
+    if (state.master) p.set('master', state.master);
+    if (state.sort) p.set('sort', state.sort);
+    return p.toString();
+}
+
+async function loadServices() {
+    try {
+        const res = await fetch('/api/services?' + buildQuery());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        renderServices(data.services || []);
+    } catch (e) {
+        document.getElementById('foundCount').textContent = 'Ошибка загрузки: ' + e.message;
+        document.getElementById('servicesGrid').innerHTML = '';
+        document.getElementById('emptyState').classList.remove('d-none');
+    }
+}
+
+// Категория
+document.getElementById('fCategory').addEventListener('change', e => {
+    state.category = e.target.value;
+    loadServices();
+});
+
+// Сортировка
+document.getElementById('fSort').addEventListener('change', e => {
+    state.sort = e.target.value;
+    loadServices();
+});
+
+// Мастер
+document.getElementById('fMaster').addEventListener('change', e => {
+    state.master = e.target.value;
+    loadServices();
+});
+
+// Применить цену
+document.getElementById('applyFilters').addEventListener('click', () => {
+    state.price_min = document.getElementById('fPriceMin').value || null;
+    state.price_max = document.getElementById('fPriceMax').value || null;
+    loadServices();
+});
+
+// Сброс
+document.getElementById('resetFilters').addEventListener('click', () => {
+    state.category = 'all';
+    state.price_min = null;
+    state.price_max = null;
+    state.master = '';
+    state.sort = 'new';
+    document.getElementById('fCategory').value = 'all';
+    document.getElementById('fPriceMin').value = '';
+    document.getElementById('fPriceMax').value = '';
+    document.getElementById('fMaster').value = '';
+    document.getElementById('fSort').value = 'new';
+    loadServices();
+});
+
+// Старт
+loadServices();
+</script>
+{% endblock %}

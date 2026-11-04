@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} — MODA{% endblock %}
+
+{% block content %}
+<div class="site-section" style="padding-top:2rem;">
+    <div class="container">
+
+        {# Хлебные крошки #}
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb small">
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.index') }}" class="text-decoration-none">Главная</a>
+                </li>
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.catalog') }}" class="text-decoration-none">Услуги</a>
+                </li>
+                {% if item.category %}
+                <li class="breadcrumb-item">
+                    <a href="{{ url_for('public.catalog') }}?category={{ item.category.slug }}"
+                       class="text-decoration-none">{{ item.category.name }}</a>
+                </li>
+                {% endif %}
+                <li class="breadcrumb-item active" aria-current="page">{{ item.name }}</li>
+            </ol>
+        </nav>
+
+        <div class="row">
+
+            {# ═══════════════════════════════════════════════════════
+               ФОТО
+            ═══════════════════════════════════════════════════════ #}
+            <div class="col-lg-6 mb-4">
+                <div class="bg-white p-3 rounded shadow-sm position-relative">
+                    {% if item.image %}
+                    <img src="{{ url_for('static', filename='images/services/' + item.image) }}"
+                         alt="{{ item.name }}"
+                         class="img-fluid rounded w-100"
+                         style="max-height:520px; object-fit:cover;"
+                         onerror="this.src='{{ url_for('static', filename='images/placeholder.jpg') }}'">
+                    {% else %}
+                    <div class="d-flex align-items-center justify-content-center rounded"
+                         style="height:400px; background:#f4f5f7; border:2px dashed #ddd;">
+                        <div class="text-center text-muted">
+                            <i class="bi bi-image" style="font-size:3rem;color:#d4819a;"></i>
+                            <p class="mt-2 mb-0">Фото скоро появится</p>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {# Бейджи поверх фото #}
+                    <div class="position-absolute" style="top:20px; left:20px;">
+                        {% if item.is_new %}
+                        <span class="badge me-1" style="background:#d4819a;">NEW</span>
+                        {% endif %}
+                        {% if item.is_hit %}
+                        <span class="badge" style="background:#c9a86a;">ХИТ</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            {# ═══════════════════════════════════════════════════════
+               ИНФОРМАЦИЯ
+            ═══════════════════════════════════════════════════════ #}
+            <div class="col-lg-6">
+                <div class="bg-white p-4 rounded shadow-sm h-100 d-flex flex-column">
+
+                    {% if item.category %}
+                    <p class="text-uppercase mb-2 small"
+                       style="color:#b56581; letter-spacing:2px;">
+                        {{ item.category.name }}
+                    </p>
+                    {% endif %}
+
+                    <h1 style="font-family:'Playfair Display',serif; font-size:2rem;">
+                        {{ item.name }}
+                    </h1>
+
+                    {# Цена #}
+                    <div class="mb-3 mt-2">
+                        <span class="price" style="font-size:1.8rem; font-weight:700; color:#b56581;">
+                            {{ item.price }} ₽
+                        </span>
+                        {% if item.old_price %}
+                        <span style="font-size:1.1rem; color:#bbb; text-decoration:line-through; margin-left:10px;">
+                            {{ item.old_price }} ₽
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    {# Мета: длительность, мастер #}
+                    <div class="mb-4 d-flex flex-wrap gap-3">
+                        {% if item.duration %}
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-clock me-2" style="color:#d4819a;"></i>
+                            <span>{{ item.duration }} мин</span>
+                        </div>
+                        {% endif %}
+                        {% if item.master %}
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-person me-2" style="color:#d4819a;"></i>
+                            <span>{{ item.master.name }}</span>
+                        </div>
+                        {% else %}
+                        <div class="d-flex align-items-center text-muted">
+                            <i class="bi bi-person me-2" style="color:#d4819a;"></i>
+                            <span>Любой мастер</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# Описание #}
+                    {% if item.description %}
+                    <hr>
+                    <h6 class="text-muted mb-2">Описание</h6>
+                    <p style="white-space:pre-line;">{{ item.description }}</p>
+                    {% endif %}
+
+                    {# Кнопка #}
+                    <div class="mt-auto pt-4">
+                        <button id="addToCart" class="btn btn-lg w-100 mb-2"
+                                style="background:#d4819a; border-color:#d4819a; color:#fff;">
+                            <i class="bi bi-plus-lg"></i> Добавить в заявку
+                        </button>
+                        <p class="text-muted small mb-0 text-center">
+                            Мы свяжемся с вами для подтверждения записи
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# ═══════════════════════════════════════════════════════════
+           МАСТЕР (если привязан)
+        ═══════════════════════════════════════════════════════════ #}
+        {% if item.master %}
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="mb-4" style="font-family:'Playfair Display',serif;">Ваш мастер</h3>
+                <div class="bg-white p-4 rounded shadow-sm d-flex align-items-center flex-wrap gap-4">
+                    {% if item.master.photo %}
+                    <img src="{{ url_for('static', filename='images/masters/' + item.master.photo) }}"
+                         alt="{{ item.master.name }}"
+                         style="width:90px; height:90px; object-fit:cover; border-radius:50%;"
+                         onerror="this.style.display='none'">
+                    {% else %}
+                    <div style="width:90px; height:90px; border-radius:50%; background:#f5d9e1;
+                                display:flex; align-items:center; justify-content:center;">
+                        <i class="bi bi-person" style="font-size:2rem; color:#d4819a;"></i>
+                    </div>
+                    {% endif %}
+                    <div class="flex-grow-1">
+                        <h5 class="mb-1">{{ item.master.name }}</h5>
+                        {% if item.master.specialization %}
+                        <p class="text-muted mb-1 small">{{ item.master.specialization }}</p>
+                        {% endif %}
+                        {% if item.master.description %}
+                        <p class="mb-0 small">{{ item.master.description }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# ═══════════════════════════════════════════════════════════
+           ПОХОЖИЕ УСЛУГИ (если routes.py передаёт related)
+        ═══════════════════════════════════════════════════════════ #}
+        {% if related %}
+        <div class="row mt-5">
+            <div class="col-12">
+                <h3 class="mb-4" style="font-family:'Playfair Display',serif;">Похожие услуги</h3>
+                <div class="row">
+                    {% for p in related %}
+                    <div class="col-md-6 col-lg-3 mb-4">
+                        <a href="{{ url_for('public.product', id=p.id) }}"
+                           class="text-decoration-none text-dark">
+                            <div class="product-card">
+                                <div class="product-image">
+                                    {% if p.image %}
+                                    <img src="{{ url_for('static', filename='images/services/' + p.image) }}"
+                                         alt="{{ p.name }}"
+                                         onerror="this.src='{{ url_for('static', filename='images/placeholder.jpg') }}'">
+                                    {% else %}
+                                    <img src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                                         alt="{{ p.name }}">
+                                    {% endif %}
+                                </div>
+                                <div class="product-info">
+                                    <h5>{{ p.name }}</h5>
+                                    <div class="price mt-auto">{{ p.price }} ₽</div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# Назад #}
+        <div class="mt-4">
+            <a href="{{ url_for('public.catalog') }}" class="text-decoration-none">
+                <i class="bi bi-arrow-left"></i> Вернуться к услугам
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Данные услуги для корзины (без size/color)
+const service = {
+    id: {{ item.id }},
+    name: {{ item.name|tojson }},
+    price: {{ item.price }},
+    image: {% if item.image %}{{ ('/static/images/services/' + item.image)|tojson }}{% else %}{{ url_for('static', filename='images/placeholder.jpg')|tojson }}{% endif %}
+};
+
+document.getElementById('addToCart').addEventListener('click', () => {
+    Cart.add(service);
+});
+</script>
+{% endblock %}

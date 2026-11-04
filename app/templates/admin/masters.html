@@ -1,0 +1,197 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Мастера | MODA{% endblock %}
+{% block page_title %}Мастера{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <h5 class="mb-0">Список мастеров ({{ masters|length }})</h5>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMasterModal">
+        <i class="bi bi-plus-lg"></i> Добавить мастера
+    </button>
+</div>
+
+{% if masters %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th width="80">Фото</th>
+                <th>Имя</th>
+                <th>Специализация</th>
+                <th>Описание</th>
+                <th width="100">Активен</th>
+                <th width="140">Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in masters %}
+            <tr>
+                <td>
+                    {% if m.photo %}
+                    <img src="{{ url_for('static', filename='images/masters/' + m.photo) }}"
+                         class="image-preview"
+                         style="width:50px; height:50px; object-fit:cover; border-radius:50%;">
+                    {% else %}
+                    <div class="image-preview"
+                         style="width:50px; height:50px; background:#f0f0f0; border-radius:50%;
+                                display:flex; align-items:center; justify-content:center;">
+                        <i class="bi bi-person" style="color:#999; font-size:1.3rem;"></i>
+                    </div>
+                    {% endif %}
+                </td>
+                <td><strong>{{ m.name }}</strong></td>
+                <td>{{ m.specialization or '—' }}</td>
+                <td>
+                    {% if m.description %}
+                    <span class="text-muted small" title="{{ m.description }}">
+                        {{ m.description[:60] }}{% if m.description|length > 60 %}…{% endif %}
+                    </span>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if m.is_active %}
+                    <span class="badge bg-success">Активен</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Скрыт</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-primary"
+                            onclick="editMaster({{ m.id }})"
+                            data-bs-toggle="modal" data-bs-target="#editMasterModal">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form action="{{ url_for('admin.masters_delete', id=m.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                onclick="return confirm('Удалить мастера «{{ m.name }}»?')">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-person-badge" style="font-size:3rem;"></i>
+    <p class="mt-2">Мастеров пока нет. Добавьте первого.</p>
+</div>
+{% endif %}
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Добавить мастера
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="addMasterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('admin.masters_add') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Добавить мастера</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Имя *</label>
+                        <input type="text" name="name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Специализация</label>
+                        <input type="text" name="specialization" class="form-control"
+                               placeholder="Мастер маникюра">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Фото</label>
+                        <input type="file" name="photo" class="form-control" accept="image/*">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_active" class="form-check-input" id="mActive" checked>
+                        <label class="form-check-label" for="mActive">Активен</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     МОДАЛКА: Редактировать мастера
+═══════════════════════════════════════════════════════════ -->
+<div class="modal fade" id="editMasterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editMasterForm" method="POST" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Редактировать мастера</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Имя *</label>
+                        <input type="text" name="name" id="emName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Специализация</label>
+                        <input type="text" name="specialization" id="emSpecialization" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Описание</label>
+                        <textarea name="description" id="emDescription" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новое фото (оставьте пустым, чтобы не менять)</label>
+                        <input type="file" name="photo" class="form-control" accept="image/*">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" name="is_active" class="form-check-input" id="emActive">
+                        <label class="form-check-label" for="emActive">Активен</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const mastersData = {
+    {% for m in masters %}
+    {{ m.id }}: {
+        name: {{ m.name|tojson }},
+        specialization: {{ (m.specialization or '')|tojson }},
+        description: {{ (m.description or '')|tojson }},
+        is_active: {{ 'true' if m.is_active else 'false' }}
+    },
+    {% endfor %}
+};
+
+function editMaster(id) {
+    const m = mastersData[id];
+    if (!m) return;
+
+    const form = document.getElementById('editMasterForm');
+    form.action = `/admin/masters/edit/${id}`;
+
+    document.getElementById('emName').value = m.name || '';
+    document.getElementById('emSpecialization').value = m.specialization || '';
+    document.getElementById('emDescription').value = m.description || '';
+    document.getElementById('emActive').checked = m.is_active;
+}
+</script>
+{% endblock %}

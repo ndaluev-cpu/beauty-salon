@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}MODA — салон красоты{% endblock %}
+
+{% block content %}
+
+{# ═══════════════════════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════════════════════ #}
+<div class="hero-section"
+     style="background: linear-gradient(135deg, #b56581 0%, #d4819a 100%);
+            height: 80vh; min-height: 500px; position: relative;">
+    <div class="container h-100">
+        <div class="row h-100 align-items-center justify-content-center">
+            <div class="col-lg-8 text-center text-white">
+                <p class="text-uppercase mb-3" style="letter-spacing:4px; opacity:.85;">
+                    Салон красоты
+                </p>
+                <h1 class="display-2 mb-4" style="font-family:'Playfair Display',serif;">
+                    MODA
+                </h1>
+                <p class="lead mb-5" style="font-size:1.3rem; max-width:640px; margin:0 auto;">
+                    Красота, которая работает на вас. Запишитесь онлайн —
+                    мы перезвоним и подтвердим удобное время.
+                </p>
+                <a href="{{ url_for('public.catalog') }}" class="btn btn-light btn-lg px-4">
+                    <i class="bi bi-calendar-check me-2"></i> Записаться
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   КАТЕГОРИИ
+═══════════════════════════════════════════════════════════ #}
+<div class="site-section">
+    <div class="container">
+        <div class="section-title">
+            <h2>Наши услуги</h2>
+            <p>Выберите направление — мы позаботимся о деталях</p>
+        </div>
+
+        {# Словарь иконок по slug. Если slug другой — сработает default 'bi-stars' #}
+        {% set icon_by_slug = {
+            'nogti': 'bi-flower1',
+            'volosy': 'bi-scissors',
+            'brovi-resnicy': 'bi-eye',
+            'makiyazh': 'bi-brush',
+            'kosmetologiya': 'bi-heart-pulse',
+            'massazh': 'bi-hand-index-thumb'
+        } %}
+
+        <div class="row">
+            {% for c in categories %}
+            <div class="col-6 col-md-4 col-lg-2 mb-4">
+                <a href="{{ url_for('public.catalog') }}?category={{ c.slug }}"
+                   class="text-decoration-none">
+                    <div class="text-center p-4 bg-white rounded shadow-sm h-100"
+                         style="transition: all .3s;"
+                         onmouseover="this.style.transform='translateY(-5px)';this.style.boxShadow='0 15px 30px rgba(0,0,0,.08)'"
+                         onmouseout="this.style.transform='';this.style.boxShadow=''">
+                        <div style="width:70px;height:70px;margin:0 auto 15px;
+                                    background:rgba(212,129,154,.12);border-radius:50%;
+                                    display:flex;align-items:center;justify-content:center;">
+                            <i class="bi {{ icon_by_slug.get(c.slug, 'bi-stars') }}"
+                               style="font-size:1.8rem;color:#d4819a;"></i>
+                        </div>
+                        <h6 class="mb-0 text-dark">{{ c.name }}</h6>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="text-center mt-3">
+            <a href="{{ url_for('public.catalog') }}" class="btn btn-outline-primary">
+                Смотреть все услуги <i class="bi bi-arrow-right"></i>
+            </a>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   НОВИНКИ
+═══════════════════════════════════════════════════════════ #}
+{% if new_services %}
+<div class="site-section" style="background:#fff;">
+    <div class="container">
+        <div class="section-title">
+            <h2>Новинки</h2>
+            <p>Свежие услуги в нашем салоне</p>
+        </div>
+        <div class="row">
+            {% for p in new_services %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="{{ url_for('public.product', id=p.id) }}"
+                   class="text-decoration-none text-dark">
+                    <div class="product-card">
+                        <div class="product-image">
+                            {% if p.image %}
+                            <img src="{{ url_for('static', filename='images/services/' + p.image) }}"
+                                 alt="{{ p.name }}"
+                                 onerror="this.src='{{ url_for('static', filename='images/placeholder.jpg') }}'">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                                 alt="{{ p.name }}">
+                            {% endif %}
+                            <span class="badge-new" style="background:#d4819a;">NEW</span>
+                        </div>
+                        <div class="product-info">
+                            <h5>{{ p.name }}</h5>
+                            <div class="cat">{{ p.category.name if p.category else '' }}</div>
+                            {% if p.duration %}
+                            <div class="sizes-mini"><i class="bi bi-clock"></i> {{ p.duration }} мин</div>
+                            {% endif %}
+                            <div class="price mt-auto">{{ p.price }} ₽</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════
+   ПОПУЛЯРНЫЕ (ХИТЫ)
+═══════════════════════════════════════════════════════════ #}
+{% if popular_services %}
+<div class="site-section">
+    <div class="container">
+        <div class="section-title">
+            <h2>Популярные услуги</h2>
+            <p>Выбор наших клиентов</p>
+        </div>
+        <div class="row">
+            {% for p in popular_services %}
+            <div class="col-md-6 col-lg-3 mb-4">
+                <a href="{{ url_for('public.product', id=p.id) }}"
+                   class="text-decoration-none text-dark">
+                    <div class="product-card">
+                        <div class="product-image">
+                            {% if p.image %}
+                            <img src="{{ url_for('static', filename='images/services/' + p.image) }}"
+                                 alt="{{ p.name }}"
+                                 onerror="this.src='{{ url_for('static', filename='images/placeholder.jpg') }}'">
+                            {% else %}
+                            <img src="{{ url_for('static', filename='images/placeholder.jpg') }}"
+                                 alt="{{ p.name }}">
+                            {% endif %}
+                            <span class="badge-hit" style="background:#c9a86a;">ХИТ</span>
+                        </div>
+                        <div class="product-info">
+                            <h5>{{ p.name }}</h5>
+                            <div class="cat">{{ p.category.name if p.category else '' }}</div>
+                            {% if p.duration %}
+                            <div class="sizes-mini"><i class="bi bi-clock"></i> {{ p.duration }} мин</div>
+                            {% endif %}
+                            <div class="price mt-auto">{{ p.price }} ₽</div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ═══════════════════════════════════════════════════════════
+   О САЛОНЕ
+═══════════════════════════════════════════════════════════ #}
+<div class="site-section" style="background:#fff;">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 mb-4 mb-lg-0">
+                <div class="placeholder-box"
+                     style="min-height:400px; display:flex; flex-direction:column; justify-content:center;">
+                    <i class="bi bi-image" style="font-size:3rem;color:#d4819a;"></i>
+                    <p class="mt-2">[ФОТО САЛОНА / ИНТЕРЬЕР / КОМАНДА]</p>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <h2 class="mb-4" style="font-family:'Playfair Display',serif;">О салоне</h2>
+                <p>
+                    MODA — салон красоты, где забота о клиенте начинается с первого звонка.
+                    Мы работаем с лучшими материалами и мастерами, чтобы вы выходили от нас
+                    с ощущением «это точно про меня».
+                </p>
+                <p>
+                    Онлайн-запись занимает 30 секунд: выбираете услугу, оставляете имя и телефон —
+                    мы перезваниваем и подтверждаем удобное время. Без ожидания на линии,
+                    без «перезвоните позже».
+                </p>
+                <a href="{{ url_for('public.about') }}" class="btn btn-outline-primary mt-3">
+                    Подробнее о нас
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ═══════════════════════════════════════════════════════════
+   CTA-ПОЛОСА
+═══════════════════════════════════════════════════════════ #}
+<div class="site-section" style="background:linear-gradient(135deg,#b56581 0%,#d4819a 100%);">
+    <div class="container text-center text-white">
+        <h2 class="mb-3" style="font-family:'Playfair Display',serif;">
+            Готовы к переменам?
+        </h2>
+        <p class="lead mb-4">Запишитесь онлайн — это займёт 30 секунд</p>
+        <a href="{{ url_for('public.catalog') }}" class="btn btn-light btn-lg px-4">
+            <i class="bi bi-calendar-check me-2"></i> Выбрать услугу
+        </a>
+    </div>
+</div>
+
+{% endblock %}

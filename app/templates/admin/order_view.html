@@ -1,0 +1,222 @@
+{% extends "admin/base_admin.html" %}
+{% block title %}Заявка #{{ order.id }} | MODA{% endblock %}
+{% block page_title %}Заявка #{{ order.id }}{% endblock %}
+
+{% block content %}
+
+{# ──────────────────────────────────────────────────────────
+   Верхняя панель: назад, статус, удалить
+────────────────────────────────────────────────────────── #}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <a href="{{ url_for('admin.orders') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-arrow-left"></i> Назад к списку
+    </a>
+
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <label class="mb-0 text-muted small">Статус:</label>
+        <select class="form-select form-select-sm" style="width:auto;"
+                onchange="setStatus({{ order.id }}, this.value)">
+            <option value="new"        {% if order.status == 'new' %}selected{% endif %}>Новая</option>
+            <option value="processing" {% if order.status == 'processing' %}selected{% endif %}>В работе</option>
+            <option value="done"       {% if order.status == 'done' %}selected{% endif %}>Выполнена</option>
+            <option value="cancelled"  {% if order.status == 'cancelled' %}selected{% endif %}>Отменена</option>
+        </select>
+
+        <form action="{{ url_for('admin.orders_delete', id=order.id) }}"
+              method="POST" class="d-inline"
+              onsubmit="return confirm('Удалить заявку #{{ order.id }}? Действие необратимо.');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i> Удалить
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+
+    {# ═══════════════════════════════════════════════════════
+       Левая колонка: данные клиента
+    ═══════════════════════════════════════════════════════ #}
+    <div class="col-lg-5 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0"><i class="bi bi-person-circle me-1"></i> Клиент</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small">Имя</dt>
+                    <dd class="col-sm-8"><strong>{{ order.customer_name }}</strong></dd>
+
+                    <dt class="col-sm-4 text-muted small">Телефон</dt>
+                    <dd class="col-sm-8">
+                        <a href="tel:{{ order.phone }}" class="text-decoration-none">
+                            <i class="bi bi-telephone"></i> {{ order.phone }}
+                        </a>
+                    </dd>
+
+                    {% if order.email %}
+                    <dt class="col-sm-4 text-muted small">Email</dt>
+                    <dd class="col-sm-8">
+                        <a href="mailto:{{ order.email }}" class="text-decoration-none">
+                            <i class="bi bi-envelope"></i> {{ order.email }}
+                        </a>
+                    </dd>
+                    {% endif %}
+
+                    {% if order.preferred_date %}
+                    <dt class="col-sm-4 text-muted small">Желаемая дата</dt>
+                    <dd class="col-sm-8">
+                        <i class="bi bi-calendar"></i>
+                        {{ order.preferred_date.strftime('%d.%m.%Y') }}
+                        {% if order.preferred_time %}
+                            в {{ order.preferred_time.strftime('%H:%M') }}
+                        {% endif %}
+                    </dd>
+                    {% endif %}
+
+                    <dt class="col-sm-4 text-muted small">Создана</dt>
+                    <dd class="col-sm-8">
+                        {{ order.created_at.strftime('%d.%m.%Y %H:%M') if order.created_at else '—' }}
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small">Статус</dt>
+                    <dd class="col-sm-8">
+                        {% if order.status == 'new' %}
+                            <span class="badge" style="background:#d4819a;">Новая</span>
+                        {% elif order.status == 'processing' %}
+                            <span class="badge bg-warning text-dark">В работе</span>
+                        {% elif order.status == 'done' %}
+                            <span class="badge bg-success">Выполнена</span>
+                        {% elif order.status == 'cancelled' %}
+                            <span class="badge bg-secondary">Отменена</span>
+                        {% else %}
+                            <span class="badge bg-light text-dark">{{ order.status }}</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+
+                {% if order.comment %}
+                <hr>
+                <h6 class="text-muted small mb-2"><i class="bi bi-chat-left-text"></i> Комментарий клиента</h6>
+                <div class="p-3 rounded" style="background:#f9f5f3; border-left:3px solid #d4819a;">
+                    {{ order.comment }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════
+       Правая колонка: услуги + сумма
+    ═══════════════════════════════════════════════════════ #}
+    <div class="col-lg-7 mb-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-list-check me-1"></i> Услуги в заявке</h6>
+                <span class="badge" style="background:#c9a86a;">
+                    {{ order.items.count() }} поз.
+                </span>
+            </div>
+            <div class="card-body p-0">
+                {% if order.items.count() > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Услуга</th>
+                                <th>Мастер</th>
+                                <th class="text-end">Цена</th>
+                                <th class="text-center">Кол-во</th>
+                                <th class="text-end pe-3">Итого</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in order.items %}
+                            <tr>
+                                <td class="ps-3">
+                                    <strong>{{ i.service_name or '—' }}</strong>
+                                </td>
+                                <td>
+                                    {% if i.master_name %}
+                                        <span class="text-muted small">
+                                            <i class="bi bi-person"></i> {{ i.master_name }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted small">Любой</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">{{ i.price or 0 }} ₽</td>
+                                <td class="text-center">× {{ i.quantity or 1 }}</td>
+                                <td class="text-end pe-3">
+                                    <strong>{{ (i.price or 0) * (i.quantity or 1) }} ₽</strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot>
+                            <tr style="background:#f9f5f3;">
+                                <td colspan="4" class="text-end fw-bold ps-3">Итого:</td>
+                                <td class="text-end pe-3">
+                                    <strong style="font-size:1.15rem; color:#b56581;">
+                                        {{ order.total or 0 }} ₽
+                                    </strong>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-inbox" style="font-size:2.5rem;"></i>
+                    <p class="mt-2 mb-0">В заявке нет позиций</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ──────────────────────────────────────────────────────────
+   Быстрые действия с клиентом
+────────────────────────────────────────────────────────── #}
+<div class="mt-2 pt-3 border-top">
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="tel:{{ order.phone }}" class="btn btn-primary">
+            <i class="bi bi-telephone-fill"></i> Позвонить
+        </a>
+        {% if order.email %}
+        <a href="mailto:{{ order.email }}?subject=Заявка%20%23{{ order.id }}%20—%20MODA"
+           class="btn btn-outline-primary">
+            <i class="bi bi-envelope-fill"></i> Написать на email
+        </a>
+        {% endif %}
+        <a href="{{ url_for('admin.orders') }}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> К списку заявок
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function setStatus(id, status) {
+    try {
+        const res = await fetch(`/admin/orders/status/${id}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({status})
+        });
+        const data = await res.json();
+        if (!data.ok) {
+            alert('Не удалось изменить статус: ' + (data.error || 'неизвестная ошибка'));
+            return;
+        }
+        // Обновим бейдж статуса в карточке клиента без перезагрузки
+        location.reload();
+    } catch (e) {
+        alert('Ошибка соединения: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

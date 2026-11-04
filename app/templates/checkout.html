@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Оформление заявки — MODA{% endblock %}
+
+{% block content %}
+<div class="site-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-7">
+                <div class="bg-white p-4 rounded shadow-sm">
+                    <h2 class="mb-4" style="font-family:'Playfair Display',serif;">
+                        Оформление заявки
+                    </h2>
+
+                    <div id="orderSummary" class="mb-4"></div>
+
+                    <form id="orderForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Имя *</label>
+                                <input type="text" name="name" class="form-control" required
+                                       autocomplete="name" placeholder="Как к вам обращаться">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Телефон *</label>
+                                <input type="tel" name="phone" class="form-control" required
+                                       autocomplete="tel" placeholder="+7 (___) ___-__-__">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control"
+                                   autocomplete="email" placeholder="необязательно">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Желаемая дата</label>
+                                <input type="date" name="preferred_date" class="form-control"
+                                       min="" id="fDate">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Желаемое время</label>
+                                <input type="time" name="preferred_time" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Комментарий</label>
+                            <textarea name="comment" class="form-control" rows="3"
+                                      placeholder="Пожелания, аллергии, особенности — всё, что важно знать мастеру"></textarea>
+                        </div>
+
+                        <button type="submit" id="submitBtn" class="btn btn-lg w-100"
+                                style="background:#d4819a; border-color:#d4819a; color:#fff;">
+                            Отправить заявку
+                        </button>
+                        <p class="text-muted small text-center mt-3 mb-0">
+                            Мы свяжемся с вами для уточнения деталей и подтверждения записи.
+                        </p>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Минимальная дата = сегодня
+    const fDate = document.getElementById('fDate');
+    if (fDate) {
+        const today = new Date().toISOString().split('T')[0];
+        fDate.setAttribute('min', today);
+    }
+
+    const items = Cart.items || [];
+    const summary = document.getElementById('orderSummary');
+    const form = document.getElementById('orderForm');
+    const submitBtn = document.getElementById('submitBtn');
+
+    if (!items.length) {
+        summary.innerHTML = `
+            <div class="alert d-flex justify-content-between align-items-center"
+                 style="background:#f5d9e1; border-color:#d4819a;">
+                <span>Заявка пуста — добавьте услуги</span>
+                <a href="/catalog" class="btn btn-sm"
+                   style="background:#d4819a; color:#fff;">К услугам</a>
+            </div>`;
+        submitBtn.disabled = true;
+        return;
+    }
+
+    summary.innerHTML = `
+        <h5 class="mb-3">Ваши услуги</h5>
+        ${items.map(i => `
+            <div class="d-flex justify-content-between small mb-1">
+                <span>
+                    ${i.name}
+                    ${(i.size || i.color) ? `(${[i.size, i.color].filter(Boolean).join(', ')})` : ''}
+                    × ${i.quantity}
+                </span>
+                <span>${i.price * i.quantity} ₽</span>
+            </div>`).join('')}
+        <hr>
+        <div class="d-flex justify-content-between fw-bold" style="font-size:1.1rem;">
+            <span>Итого:</span>
+            <span style="color:#b56581;">${Cart.getTotal()} ₽</span>
+        </div>`;
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (submitBtn.disabled) return;
+
+        const fd = new FormData(form);
+        const payload = {
+            name: (fd.get('name') || '').trim(),
+            phone: (fd.get('phone') || '').trim(),
+            email: (fd.get('email') || '').trim(),
+            comment: (fd.get('comment') || '').trim(),
+            preferred_date: fd.get('preferred_date') || null,
+            preferred_time: fd.get('preferred_time') || null,
+            items: Cart.items
+        };
+
+        if (!payload.name || !payload.phone) {
+            alert('Заполните имя и телефон');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = 'Отправляем...';
+
+        try {
+            const res = await fetch('/checkout', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                alert(data.error || 'Не удалось отправить заявку. Попробуйте ещё раз.');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+                return;
+            }
+
+            const data = await res.json();
+            if (data.ok) {
+                Cart.clear();
+                window.location.href = '/thanks';
+            } else {
+                alert(data.error || 'Ошибка');
+                submitBtn.disabled = false;
+                submitBtn.textContent = originalText;
+            }
+        } catch (err) {
+            alert('Ошибка соединения: ' + err.message);
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    });
+});
+</script>
+{% endblock %}
