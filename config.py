@@ -6,14 +6,12 @@ load_dotenv()
 
 
 def _normalize_db_url(url: str | None) -> str:
-    """Приводит DATABASE_URL к формату, понятному SQLAlchemy + psycopg2."""
     if not url:
-        return url  # ниже сработает ранняя проверка
-    # Render/Supabase иногда отдают старый формат postgres://
-    if url.startswith("postgres://"):
-        url = url.replace("postgres://", "postgresql+psycopg2://", 1)
-    # Явно указываем драйвер psycopg2 (он понимает пользователя вида postgres.xxxx)
-    elif url.startswith("postgresql://") and "+psycopg2" not in url:
+        return url
+    # Убираем любой уже указанный драйвер и ставим psycopg2
+    url = url.replace("postgresql+pg8000://", "postgresql://")
+    url = url.replace("postgres://", "postgresql://")
+    if url.startswith("postgresql://") and "+psycopg2" not in url:
         url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     return url
 
